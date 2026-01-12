@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mlops-training-job
+  namespace: mlops
+  labels:
+    app: mlops-training
+spec:
+  ttlSecondsAfterFinished: 3600  # Clean up after 1 hour
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: mlops-training
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: trainer
+        image: mlops-train:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: MODEL_OUTPUT_DIR
+          valueFrom:
+            configMapKeyRef:
+              name: mlops-config
+              key: MODEL_OUTPUT_DIR
+        - name: TRAINING_SAMPLES
+          valueFrom:
+            configMapKeyRef:
+              name: mlops-config
+              key: TRAINING_SAMPLES
+        - name: MODEL_REGISTRY_TYPE
+          valueFrom:
+            configMapKeyRef:
+              name: mlops-config
+              key: MODEL_REGISTRY_TYPE
+        - name: MODEL_REGISTRY_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: mlops-config
+              key: MODEL_REGISTRY_PATH
+        volumeMounts:
+        - name: model-storage
+          mountPath: /models
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+      volumes:
+      - name: model-storage
+        persistentVolumeClaim:
+          claimName: mlops-model-pvc

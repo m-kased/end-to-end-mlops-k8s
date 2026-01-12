@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mlops-config
+  namespace: mlops
+data:
+  MODEL_OUTPUT_DIR: "/models"
+  MODEL_REGISTRY_TYPE: "local"
+  MODEL_REGISTRY_PATH: "/models"
+  HOST: "0.0.0.0"
+  PORT: "8000"
+  TRAINING_SAMPLES: "1000"
