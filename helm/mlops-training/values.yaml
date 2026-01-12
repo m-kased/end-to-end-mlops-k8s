@@ -1,0 +1,79 @@
+# Default values for mlops-training
+replicaCount: 1
+
+image:
+  repository: mlops-train
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Training configuration
+training:
+  samples: 1000
+  outputDir: "/models"
+  uploadToRegistry: false
+
+# Model registry configuration
+registry:
+  type: "local"  # local, s3, gcs
+  path: "/models"
+  s3:
+    bucket: ""
+  gcs:
+    bucket: ""
+
+# Persistent volume configuration
+persistence:
+  enabled: true
+  storageClass: "gp3"
+  accessMode: ReadWriteMany
+  size: 10Gi
+  existingClaim: ""
+
+# Job configuration
+job:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 3600
+  restartPolicy: Never
+
+# Environment variables
+env: []
+  # - name: CUSTOM_VAR
+  #   value: "value"
+
+# Secrets for registry access
+secrets:
+  enabled: false
+  aws:
+    accessKeyId: ""
+    secretAccessKey: ""
+  gcp:
+    credentialsJson: ""

@@ -1,0 +1,12 @@
+apiVersion: v2
+name: mlops-training
+description: A Helm chart for MLOps training jobs
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - mlops
+  - machine-learning
+  - training
+maintainers:
+  - name: MLOps Team

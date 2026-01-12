@@ -1,0 +1,119 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "mlops-training.fullname" . }}
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "mlops-training.labels" . | nindent 4 }}
+    app.kubernetes.io/component: training
+spec:
+  ttlSecondsAfterFinished: {{ .Values.job.ttlSecondsAfterFinished }}
+  backoffLimit: {{ .Values.job.backoffLimit }}
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "mlops-training.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "mlops-training.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      restartPolicy: {{ .Values.job.restartPolicy }}
+      containers:
+      - name: trainer
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["python", "-m", "src.train"]
+        args:
+          - "--output-dir"
+          - {{ .Values.training.outputDir | quote }}
+          - "--samples"
+          - {{ .Values.training.samples | quote }}
+          {{- if .Values.training.uploadToRegistry }}
+          - "--upload"
+          {{- end }}
+        env:
+        - name: MODEL_OUTPUT_DIR
+          value: {{ .Values.training.outputDir | quote }}
+        - name: TRAINING_SAMPLES
+          value: {{ .Values.training.samples | quote }}
+        - name: MODEL_REGISTRY_TYPE
+          value: {{ .Values.registry.type | quote }}
+        - name: MODEL_REGISTRY_PATH
+          value: {{ .Values.registry.path | quote }}
+        {{- if eq .Values.registry.type "s3" }}
+        - name: S3_BUCKET
+          value: {{ .Values.registry.s3.bucket | quote }}
+        {{- if .Values.secrets.enabled }}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "mlops-training.fullname" . }}-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "mlops-training.fullname" . }}-secrets
+              key: aws-secret-access-key
+        {{- end }}
+        {{- end }}
+        {{- if eq .Values.registry.type "gcs" }}
+        - name: GCS_BUCKET
+          value: {{ .Values.registry.gcs.bucket | quote }}
+        {{- if .Values.secrets.enabled }}
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/etc/gcp/credentials.json"
+        {{- end }}
+        {{- end }}
+        {{- with .Values.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        volumeMounts:
+        - name: model-storage
+          mountPath: {{ .Values.training.outputDir }}
+        {{- if and (eq .Values.registry.type "gcs") .Values.secrets.enabled }}
+        - name: gcp-credentials
+          mountPath: /etc/gcp
+          readOnly: true
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+      volumes:
+      - name: model-storage
+        {{- if .Values.persistence.enabled }}
+        {{- if .Values.persistence.existingClaim }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.persistence.existingClaim }}
+        {{- else }}
+        persistentVolumeClaim:
+          claimName: {{ include "mlops-training.fullname" . }}-pvc
+        {{- end }}
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      {{- if and (eq .Values.registry.type "gcs") .Values.secrets.enabled }}
+      - name: gcp-credentials
+        secret:
+          secretName: {{ include "mlops-training.fullname" . }}-secrets
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
