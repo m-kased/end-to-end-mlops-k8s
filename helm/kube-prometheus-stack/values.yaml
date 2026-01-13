@@ -1,0 +1,121 @@
+# Kube Prometheus Stack values
+# This is a minimal configuration - customize as needed
+
+prometheus:
+  enabled: true
+  prometheusSpec:
+    retention: 30d
+    retentionSize: 50GB
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    resources:
+      requests:
+        memory: 2Gi
+        cpu: 1000m
+      limits:
+        memory: 4Gi
+        cpu: 2000m
+
+grafana:
+  enabled: true
+  adminUser: admin
+  adminPassword: admin  # Change in production!
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    size: 10Gi
+  service:
+    type: ClusterIP
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+  dashboards:
+    default:
+      mlops-dashboard:
+        gnetId: 0
+        revision: 0
+        datasource: Prometheus
+        json: |
+          {
+            "dashboard": {
+              "title": "MLOps Model Serving Dashboard",
+              "panels": [
+                {
+                  "title": "Request Rate",
+                  "targets": [
+                    {
+                      "expr": "rate(ml_requests_total[5m])",
+                      "legendFormat": "{{model_version}}"
+                    }
+                  ],
+                  "type": "graph"
+                },
+                {
+                  "title": "Request Duration",
+                  "targets": [
+                    {
+                      "expr": "histogram_quantile(0.95, rate(ml_request_duration_seconds_bucket[5m]))",
+                      "legendFormat": "p95 - {{model_version}}"
+                    }
+                  ],
+                  "type": "graph"
+                },
+                {
+                  "title": "Predictions by Class",
+                  "targets": [
+                    {
+                      "expr": "sum(rate(ml_predictions_total[5m])) by (prediction_class)",
+                      "legendFormat": "Class {{prediction_class}}"
+                    }
+                  ],
+                  "type": "graph"
+                }
+              ]
+            }
+          }
+
+alertmanager:
+  enabled: true
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 12h
+      receiver: 'null'
+    receivers:
+      - name: 'null'
+
+# ServiceMonitor for MLOps serving
+defaultRules:
+  create: true
+
+# Additional scrape configs
+additionalScrapeConfigs: []
