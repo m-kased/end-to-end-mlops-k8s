@@ -1,0 +1,41 @@
+{{- if and .Values.istio.enabled .Values.istio.virtualService.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ include "mlops-serving.fullname" . }}
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "mlops-serving.labels" . | nindent 4 }}
+spec:
+  hosts:
+    {{- range .Values.istio.virtualService.hosts }}
+    - {{ . | quote }}
+    {{- end }}
+  gateways:
+    {{- if .Values.istio.gateway.enabled }}
+    - {{ .Values.istio.gateway.name }}
+    {{- end }}
+  http:
+    {{- range .Values.istio.virtualService.http }}
+    - match:
+        {{- range .match }}
+        {{- if .uri }}
+        - uri:
+            {{- if .uri.prefix }}
+            prefix: {{ .uri.prefix }}
+            {{- end }}
+            {{- if .uri.exact }}
+            exact: {{ .uri.exact }}
+            {{- end }}
+        {{- end }}
+        {{- end }}
+      route:
+        {{- range .route }}
+        - destination:
+            host: {{ .destination.host }}
+            port:
+              number: {{ .destination.port.number }}
+          weight: {{ .weight }}
+        {{- end }}
+    {{- end }}
+{{- end }}

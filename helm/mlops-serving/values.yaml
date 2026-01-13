@@ -1,0 +1,146 @@
+# Default values for mlops-serving
+replicaCount: 3
+
+image:
+  repository: mlops-serve
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+# Ingress removed - using Istio Gateway instead
+
+# Istio configuration
+istio:
+  enabled: true
+  gateway:
+    enabled: true
+    name: mlops-gateway
+    hosts:
+      - mlops-api.example.com
+    port: 80
+    protocol: HTTP
+  virtualService:
+    enabled: true
+    hosts:
+      - mlops-api.example.com
+    http:
+      - match:
+          - uri:
+              prefix: /
+        route:
+          - destination:
+              host: mlops-serving
+              port:
+                number: 80
+            weight: 100
+  destinationRule:
+    enabled: true
+    trafficPolicy:
+      loadBalancer:
+        simple: ROUND_ROBIN
+      connectionPool:
+        tcp:
+          maxConnections: 100
+        http:
+          http1MaxPendingRequests: 10
+          http2MaxRequests: 100
+          maxRequestsPerConnection: 2
+      outlierDetection:
+        consecutiveErrors: 3
+        interval: 30s
+        baseEjectionTime: 30s
+        maxEjectionPercent: 50
+        minHealthPercent: 50
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Model configuration
+model:
+  path: "/models/model.pkl"
+  version: "latest"
+
+# Persistent volume configuration
+persistence:
+  enabled: true
+  storageClass: "gp3"
+  accessMode: ReadWriteMany
+  size: 10Gi
+  existingClaim: ""
+
+# Environment variables
+env: []
+  # - name: CUSTOM_VAR
+  #   value: "value"
+
+# Liveness and readiness probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Monitoring configuration
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    additionalLabels: {}

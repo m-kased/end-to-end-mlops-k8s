@@ -1,0 +1,27 @@
+{{- if and .Values.istio.enabled .Values.istio.destinationRule.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ include "mlops-serving.fullname" . }}
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "mlops-serving.labels" . | nindent 4 }}
+spec:
+  host: {{ include "mlops-serving.fullname" . }}
+  {{- if .Values.istio.destinationRule.trafficPolicy }}
+  trafficPolicy:
+    {{- toYaml .Values.istio.destinationRule.trafficPolicy | nindent 4 }}
+  {{- end }}
+  {{- if .Values.istio.destinationRule.subsets }}
+  subsets:
+    {{- range .Values.istio.destinationRule.subsets }}
+    - name: {{ .name }}
+      labels:
+        {{- toYaml .labels | nindent 8 }}
+      {{- if .trafficPolicy }}
+      trafficPolicy:
+        {{- toYaml .trafficPolicy | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
