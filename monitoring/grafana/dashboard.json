@@ -1,0 +1,47 @@
+{
+  "dashboard": {
+    "title": "MLOps Model Serving Dashboard",
+    "panels": [
+      {
+        "title": "Request Rate",
+        "targets": [
+          {
+            "expr": "rate(ml_requests_total[5m])",
+            "legendFormat": "{{model_version}}"
+          }
+        ],
+        "type": "graph"
+      },
+      {
+        "title": "Request Duration",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(ml_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95 - {{model_version}}"
+          }
+        ],
+        "type": "graph"
+      },
+      {
+        "title": "Predictions by Class",
+        "targets": [
+          {
+            "expr": "sum(rate(ml_predictions_total[5m])) by (prediction_class)",
+            "legendFormat": "Class {{prediction_class}}"
+          }
+        ],
+        "type": "graph"
+      },
+      {
+        "title": "Active Pods",
+        "targets": [
+          {
+            "expr": "count(up{job=\"mlops-serving\"})",
+            "legendFormat": "Active Pods"
+          }
+        ],
+        "type": "singlestat"
+      }
+    ]
+  }
+}
