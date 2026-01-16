@@ -31,6 +31,8 @@ models/
 *.tfstate
 *.tfstate.*
 .terraform.lock.hcl
+terraform/**/aws/
+terraform/**/*.zip
 
 # Kubernetes
 kubeconfig
